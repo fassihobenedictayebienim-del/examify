@@ -6,6 +6,7 @@ import json
 import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify
+
 from models.models import db, QuizSession, Question, QuestionSet
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,6 @@ def create_session():
     session = QuizSession(question_set_id=qs_id)
     db.session.add(session)
     db.session.commit()
-
     return jsonify({'session': session.to_dict()}), 201
 
 

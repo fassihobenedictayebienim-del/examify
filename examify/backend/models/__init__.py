@@ -1,1 +1,1 @@
-from models.models import UploadedFile, QuestionSet, Question, QuizSession
+from models.models import db, UploadedFile, QuestionSet, Question, QuizSession
