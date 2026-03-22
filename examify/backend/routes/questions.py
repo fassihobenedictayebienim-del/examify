@@ -7,7 +7,7 @@ import threading
 import logging
 from flask import Blueprint, request, jsonify, current_app
 
-from app import db
+from models.models import db
 from models import UploadedFile, QuestionSet, Question
 from utils.question_generator import generate_questions
 

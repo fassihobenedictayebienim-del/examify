@@ -10,7 +10,7 @@ import logging
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 
-from app import db
+from models.models import db
 from models import UploadedFile
 from utils.text_extractor import extract_text
 from utils.file_validator import validate_upload, sanitize_filename, get_file_extension
