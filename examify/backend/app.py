@@ -1,19 +1,17 @@
 import os
-from flask import Flask, send_from_directory, jsonify, request
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
 load_dotenv()
 
-FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build')
+FRONTEND_BUILD_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build')
+)
 
 
 def create_app():
-    app = Flask(
-        __name__,
-        static_folder=os.path.abspath(FRONTEND_BUILD_DIR),
-        static_url_path='',
-    )
+    app = Flask(__name__)
 
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'examify-dev-secret')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///examify.db')
@@ -42,29 +40,19 @@ def create_app():
     def health():
         return jsonify(status='ok', message='Examify API is running')
 
-    @app.after_request
-    def after_request(response):
-        return response
+    # Serve React static files explicitly
+    @app.route('/')
+    def index():
+        return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
 
-    @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
-    def serve_frontend(path):
-        # Send all API requests to 404 - blueprints handle them
-        if path.startswith('api'):
-            return jsonify(error='API endpoint not found'), 404
-
-        static_folder = app.static_folder
-
-        if static_folder and path:
-            full_path = os.path.join(static_folder, path)
-            if os.path.isfile(full_path):
-                return send_from_directory(static_folder, path)
-
-        index = os.path.join(static_folder, 'index.html') if static_folder else None
-        if index and os.path.isfile(index):
-            return send_from_directory(static_folder, 'index.html')
-
-        return jsonify(error='Frontend build not found.'), 404
+    def static_files(path):
+        # Check if it's a real static file first
+        full_path = os.path.join(FRONTEND_BUILD_DIR, path)
+        if os.path.isfile(full_path):
+            return send_from_directory(FRONTEND_BUILD_DIR, path)
+        # Otherwise serve index.html for React Router
+        return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
 
     @app.errorhandler(413)
     def file_too_large(e):
