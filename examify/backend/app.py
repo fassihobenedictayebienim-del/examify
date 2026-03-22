@@ -1,10 +1,11 @@
 """
 Examify Backend - Flask Application
-Serves both the REST API and the built React frontend as static files.
+API routes under /api/
+Frontend served from /app/ with redirect from /
 """
 
 import os
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, redirect
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -31,6 +32,7 @@ def create_app():
 
     CORS(app, resources={r'/api/*': {'origins': '*'}})
 
+    # ── Register API blueprints FIRST ─────────────────────────────────────────
     from routes.upload import upload_bp
     from routes.questions import questions_bp
     from routes.sessions import sessions_bp
@@ -42,36 +44,87 @@ def create_app():
     with app.app_context():
         db.create_all()
 
+    # ── API health ────────────────────────────────────────────────────────────
     @app.route('/api/health')
     def health():
         return jsonify(status='ok', message='Examify API is running')
 
-    @app.route('/')
-    def index():
+    # ── Frontend static files served under /static/ ───────────────────────────
+    # React build puts JS/CSS in build/static/
+    # We serve them at /static/ which does NOT conflict with /api/
+    @app.route('/static/js/<path:filename>')
+    def static_js(filename):
+        return send_from_directory(
+            os.path.join(FRONTEND_BUILD_DIR, 'static', 'js'), filename)
+
+    @app.route('/static/css/<path:filename>')
+    def static_css(filename):
+        return send_from_directory(
+            os.path.join(FRONTEND_BUILD_DIR, 'static', 'css'), filename)
+
+    @app.route('/static/media/<path:filename>')
+    def static_media(filename):
+        return send_from_directory(
+            os.path.join(FRONTEND_BUILD_DIR, 'static', 'media'), filename)
+
+    # ── Root-level static files (favicon, manifest, etc.) ────────────────────
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(FRONTEND_BUILD_DIR, 'favicon.ico')
+
+    @app.route('/manifest.json')
+    def manifest():
+        return send_from_directory(FRONTEND_BUILD_DIR, 'manifest.json')
+
+    @app.route('/robots.txt')
+    def robots():
+        return send_from_directory(FRONTEND_BUILD_DIR, 'robots.txt')
+
+    # ── All frontend app routes → index.html ─────────────────────────────────
+    # List every React route explicitly so /api/ is NEVER touched here
+    frontend_routes = [
+        '/',
+        '/upload',
+        '/history',
+        '/questions/<int:set_id>',
+        '/quiz/<int:set_id>',
+        '/results/<int:session_id>',
+    ]
+
+    def serve_index():
         index_path = os.path.join(FRONTEND_BUILD_DIR, 'index.html')
         if os.path.isfile(index_path):
             return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
         return jsonify(
-            error='Frontend not built yet.',
+            error='Frontend not built.',
             hint='Run: cd frontend && npm install && npm run build'
         ), 404
 
-    @app.route('/static/<path:filename>')
-    def static_assets(filename):
-        return send_from_directory(
-            os.path.join(FRONTEND_BUILD_DIR, 'static'), filename
-        )
+    @app.route('/')
+    def index():
+        return serve_index()
 
-    @app.route('/<path:path>')
-    def react_routes(path):
-        full = os.path.join(FRONTEND_BUILD_DIR, path)
-        if os.path.isfile(full):
-            return send_from_directory(FRONTEND_BUILD_DIR, path)
-        index_path = os.path.join(FRONTEND_BUILD_DIR, 'index.html')
-        if os.path.isfile(index_path):
-            return send_from_directory(FRONTEND_BUILD_DIR, 'index.html')
-        return jsonify(error='Not found'), 404
+    @app.route('/upload')
+    def upload_page():
+        return serve_index()
 
+    @app.route('/history')
+    def history_page():
+        return serve_index()
+
+    @app.route('/questions/<int:set_id>')
+    def questions_page(set_id):
+        return serve_index()
+
+    @app.route('/quiz/<int:set_id>')
+    def quiz_page(set_id):
+        return serve_index()
+
+    @app.route('/results/<int:session_id>')
+    def results_page(session_id):
+        return serve_index()
+
+    # ── Error handlers ────────────────────────────────────────────────────────
     @app.errorhandler(413)
     def file_too_large(e):
         return jsonify(error='File too large. Maximum size is 50 MB.'), 413
