@@ -1,7 +1,6 @@
 import os
-from flask import Flask, send_from_directory, jsonify
+from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -43,9 +42,17 @@ def create_app():
     def health():
         return jsonify(status='ok', message='Examify API is running')
 
+    @app.after_request
+    def after_request(response):
+        return response
+
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_frontend(path):
+        # Send all API requests to 404 - blueprints handle them
+        if path.startswith('api'):
+            return jsonify(error='API endpoint not found'), 404
+
         static_folder = app.static_folder
 
         if static_folder and path:
