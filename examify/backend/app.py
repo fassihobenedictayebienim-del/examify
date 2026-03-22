@@ -1,15 +1,10 @@
-"""
-Examify Backend - Flask Application
-"""
-
 import os
-from flask import Flask, send_from_directory, jsonify, abort
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
 load_dotenv()
-
-from models.models import db
 
 FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend', 'build')
 
@@ -29,6 +24,7 @@ def create_app():
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+    from models.models import db
     db.init_app(app)
     CORS(app, resources={r'/api/*': {'origins': '*'}})
 
@@ -50,10 +46,6 @@ def create_app():
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_frontend(path):
-        # Never intercept API routes
-        if path.startswith('api/'):
-            abort(404)
-
         static_folder = app.static_folder
 
         if static_folder and path:
@@ -65,10 +57,7 @@ def create_app():
         if index and os.path.isfile(index):
             return send_from_directory(static_folder, 'index.html')
 
-        return jsonify(
-            error='Frontend build not found.',
-            hint='Run npm run build in the frontend folder first.',
-        ), 404
+        return jsonify(error='Frontend build not found.'), 404
 
     @app.errorhandler(413)
     def file_too_large(e):
